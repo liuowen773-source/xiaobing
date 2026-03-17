@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="ORT 学习">
+<title>Oxford Reading Tree 学习工具</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  body { font-family: -apple-system, 'PingFang SC', sans-serif; background: #f5f5f0; min-height: 100vh; }
+
+  .app { max-width: 780px; margin: 0 auto; padding: 0 0 80px; }
+
+  .header { background: white; padding: 1.2rem 1.5rem 1rem; border-bottom: 1px solid #e8e8e4; position: sticky; top: 0; z-index: 100; }
+  .header h1 { font-size: 18px; font-weight: 600; color: #1a1a18; letter-spacing: -0.3px; }
+  .header p { font-size: 12px; color: #888; margin-top: 2px; }
+
+  .nav { display: flex; gap: 0; background: white; border-bottom: 1px solid #e8e8e4; overflow-x: auto; scrollbar-width: none; }
+  .nav::-webkit-scrollbar { display: none; }
+  .nav-btn { flex: 1; min-width: 70px; padding: 12px 8px; border: none; background: none; font-size: 13px; color: #888; cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.15s; white-space: nowrap; font-family: inherit; }
+  .nav-btn.active { color: #0F6E56; border-bottom-color: #1D9E75; font-weight: 500; }
+
+  .screen { display: none; padding: 1.25rem 1rem; }
+  .screen.active { display: block; }
+
+  /* Filters */
+  .stage-filter { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 1rem; }
+  .filter-btn { padding: 5px 14px; border-radius: 16px; border: 1px solid #ddd; background: white; color: #666; font-size: 13px; cursor: pointer; font-family: inherit; transition: all 0.15s; }
+  .filter-btn.active { background: #1D9E75; border-color: #1D9E75; color: white; }
+
+  /* Flashcard */
+  .card-meta { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+  .card-counter { font-size: 13px; color: #888; }
+  .progress-bar { background: #e8e8e4; border-radius: 4px; height: 5px; flex: 1; margin: 0 12px; }
+  .progress-fill { background: #1D9E75; height: 100%; border-radius: 4px; transition: width 0.3s; }
+
+  .flashcard-wrap { perspective: 1000px; width: 100%; height: 210px; margin: 0 auto 1.25rem; }
+  .flashcard { width: 100%; height: 100%; position: relative; transform-style: preserve-3d; transition: transform 0.45s; cursor: pointer; }
+  .flashcard.flipped { transform: rotateY(180deg); }
+  .card-face { position: absolute; inset: 0; border-radius: 16px; display: flex; flex-direction: column; align-items: center; justify-content: center; backface-visibility: hidden; }
+  .card-front { background: white; border: 1px solid #e8e8e4; box-shadow: 0 2px 12px rgba(0,0,0,0.06); }
+  .card-back { background: #E1F5EE; border: 1px solid #9FE1CB; transform: rotateY(180deg); }
+  .card-word { font-size: 44px; font-weight: 600; color: #1a1a18; letter-spacing: -1px; }
+  .card-tap-hint { font-size: 12px; color: #bbb; margin-top: 10px; }
+  .card-meaning { font-size: 24px; color: #0F6E56; font-weight: 600; }
+  .card-example { font-size: 13px; color: #1D9E75; margin-top: 10px; text-align: center; padding: 0 1.5rem; line-height: 1.5; }
+
+  .card-controls { display: flex; gap: 10px; justify-content: center; margin-bottom: 1rem; }
+  .btn { padding: 10px 22px; border-radius: 12px; border: 1px solid #ddd; background: white; color: #333; font-size: 14px; cursor: pointer; font-family: inherit; font-weight: 500; transition: all 0.15s; }
+  .btn:active { transform: scale(0.97); }
+  .btn.green { background: #1D9E75; border-color: #1D9E75; color: white; }
+  .btn.red { background: #E24B4A; border-color: #E24B4A; color: white; }
+  .btn.gray { background: #f0f0ec; border-color: #e0e0dc; color: #555; }
+
+  .card-result { text-align: center; padding: 2rem; background: white; border-radius: 16px; border: 1px solid #e8e8e4; }
+  .result-stars { font-size: 32px; margin-bottom: 8px; }
+  .result-msg { font-size: 16px; font-weight: 600; color: #1a1a18; margin-bottom: 4px; }
+  .result-sub { font-size: 13px; color: #888; margin-bottom: 1rem; }
+
+  /* Quiz */
+  .quiz-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+  .quiz-score-badge { background: #E1F5EE; color: #0F6E56; font-size: 14px; font-weight: 600; padding: 6px 14px; border-radius: 20px; }
+  .quiz-progress-label { font-size: 13px; color: #888; }
+  .quiz-question { background: white; border: 1px solid #e8e8e4; border-radius: 16px; padding: 2rem 1.5rem; text-align: center; margin-bottom: 1rem; box-shadow: 0 2px 12px rgba(0,0,0,0.04); }
+  .q-word { font-size: 36px; font-weight: 600; color: #1a1a18; margin-bottom: 8px; }
+  .q-hint { font-size: 13px; color: #aaa; }
+  .quiz-options { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 1rem; }
+  .quiz-opt { padding: 14px 10px; border-radius: 12px; border: 1px solid #e0e0dc; background: white; font-size: 15px; cursor: pointer; font-family: inherit; transition: all 0.15s; color: #333; line-height: 1.3; }
+  .quiz-opt:active:not(:disabled) { transform: scale(0.97); }
+  .quiz-opt:disabled { cursor: default; }
+  .quiz-opt.correct { background: #E1F5EE; border-color: #1D9E75; color: #085041; font-weight: 500; }
+  .quiz-opt.wrong { background: #FCEBEB; border-color: #E24B4A; color: #791F1F; }
+  .quiz-feedback { text-align: center; font-size: 14px; min-height: 20px; color: #666; margin-bottom: 0.75rem; }
+
+  .quiz-complete { text-align: center; padding: 2.5rem 1rem; background: white; border-radius: 16px; border: 1px solid #e8e8e4; }
+  .quiz-complete-score { font-size: 40px; font-weight: 700; color: #1D9E75; }
+  .quiz-complete-msg { font-size: 15px; color: #555; margin: 8px 0 1.5rem; }
+
+  /* Progress */
+  .summary-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 1.25rem; }
+  .stat-card { background: white; border-radius: 14px; padding: 1rem; text-align: center; border: 1px solid #e8e8e4; }
+  .stat-val { font-size: 26px; font-weight: 700; color: #1a1a18; }
+  .stat-lbl { font-size: 11px; color: #999; margin-top: 3px; }
+
+  .book-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 10px; }
+  .book-item { background: white; border: 1px solid #e8e8e4; border-radius: 14px; padding: 0.9rem 0.6rem; text-align: center; cursor: pointer; transition: all 0.15s; user-select: none; }
+  .book-item:active { transform: scale(0.96); }
+  .book-item.read { background: #E1F5EE; border-color: #9FE1CB; }
+  .book-item .book-icon { font-size: 26px; margin-bottom: 5px; }
+  .book-item .book-title { font-size: 11px; color: #666; line-height: 1.4; }
+  .book-item.read .book-title { color: #085041; }
+  .book-item .book-check { font-size: 10px; color: #1D9E75; margin-top: 5px; font-weight: 600; }
+
+  /* Rewards */
+  .stars-display { background: linear-gradient(135deg, #FAEEDA, #FAC775); border-radius: 20px; padding: 2rem; text-align: center; margin-bottom: 1.5rem; }
+  .stars-number { font-size: 52px; font-weight: 700; color: #63380 6; }
+  .stars-icon { font-size: 32px; }
+  .stars-label { font-size: 14px; color: #854F0B; margin-top: 4px; }
+
+  .section-title { font-size: 15px; font-weight: 600; color: #1a1a18; margin-bottom: 0.75rem; }
+  .badges-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
+  .badge-item { background: white; border: 1px solid #e8e8e4; border-radius: 14px; padding: 1rem; text-align: center; transition: all 0.2s; }
+  .badge-item.earned { background: #FAEEDA; border-color: #EF9F27; }
+  .badge-item:not(.earned) { opacity: 0.4; filter: grayscale(0.5); }
+  .badge-icon { font-size: 30px; margin-bottom: 6px; }
+  .badge-name { font-size: 13px; font-weight: 600; color: #1a1a18; }
+  .badge-desc { font-size: 11px; color: #888; margin-top: 3px; line-height: 1.3; }
+  .badge-item.earned .badge-name { color: #633806; }
+  .badge-item.earned .badge-desc { color: #854F0B; }
+
+  .toast { position: fixed; bottom: 90px; left: 50%; transform: translateX(-50%) translateY(20px); background: #1a1a18; color: white; padding: 10px 20px; border-radius: 20px; font-size: 13px; opacity: 0; transition: all 0.3s; z-index: 999; pointer-events: none; white-space: nowrap; }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <div class="header">
+    <h1>📚 Oxford Reading Tree</h1>
+    <p>学习辅助工具 · 为孩子定制</p>
+  </div>
+
+  <div class="nav">
+    <button class="nav-btn active" onclick="showScreen('flashcard',this)">词汇闪卡</button>
+    <button class="nav-btn" onclick="showScreen('quiz',this)">趣味测验</button>
+    <button class="nav-btn" onclick="showScreen('progress',this)">阅读进度</button>
+    <button class="nav-btn" onclick="showScreen('rewards',this)">奖励中心</button>
+  </div>
+
+  <!-- Flashcard -->
+  <div id="screen-flashcard" class="screen active">
+    <div class="stage-filter" id="flashcard-stages">
+      <span style="font-size:13px;color:#888;line-height:28px;margin-right:4px;">阶段：</span>
+      <button class="filter-btn active" onclick="selectStage(1,this)">Stage 1</button>
+      <button class="filter-btn" onclick="selectStage(2,this)">Stage 2</button>
+      <button class="filter-btn" onclick="selectStage(3,this)">Stage 3</button>
+      <button class="filter-btn" onclick="selectStage(4,this)">Stage 4</button>
+      <button class="filter-btn" onclick="selectStage(5,this)">Stage 5</button>
+    </div>
+    <div class="card-meta">
+      <span class="card-counter" id="card-counter">1 / 10</span>
+      <div class="progress-bar"><div class="progress-fill" id="card-progress" style="width:10%"></div></div>
+      <span style="font-size:13px;color:#1D9E75;font-weight:500;" id="known-badge">✓ 0</span>
+    </div>
+    <div class="flashcard-wrap" id="flashcard-wrap">
+      <div class="flashcard" id="flashcard" onclick="flipCard()">
+        <div class="card-face card-front">
+          <div class="card-word" id="card-word">the</div>
+          <div class="card-tap-hint">轻点翻转</div>
+        </div>
+        <div class="card-face card-back">
+          <div class="card-meaning" id="card-meaning">这个 / 那个</div>
+          <div class="card-example" id="card-example">"The cat sat on the mat."</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-controls" id="card-controls">
+      <button class="btn red" onclick="nextCard(false)">再练一次</button>
+      <button class="btn gray" onclick="flipCard()">翻转</button>
+      <button class="btn green" onclick="nextCard(true)">认识了！</button>
+    </div>
+    <div class="card-result" id="card-result" style="display:none;">
+      <div class="result-stars">🌟</div>
+      <div class="result-msg">本轮完成！</div>
+      <div class="result-sub" id="result-sub">已掌握 0 个单词，获得 0 颗星</div>
+      <button class="btn green" onclick="restartCards()">再来一遍</button>
+    </div>
+  </div>
+
+  <!-- Quiz -->
+  <div id="screen-quiz" class="screen">
+    <div class="quiz-header">
+      <div class="quiz-score-badge">⭐ <span id="quiz-score">0</span> 分</div>
+      <div class="quiz-progress-label"><span id="quiz-qnum">0</span> / 10 题</div>
+    </div>
+    <div id="quiz-main">
+      <div class="quiz-question">
+        <div class="q-word" id="quiz-word">look</div>
+        <div class="q-hint">选择正确的中文意思</div>
+      </div>
+      <div class="quiz-options" id="quiz-options"></div>
+      <div class="quiz-feedback" id="quiz-feedback"></div>
+      <div style="text-align:center;">
+        <button class="btn green" id="next-quiz-btn" onclick="nextQuiz()" style="display:none;">下一题 →</button>
+      </div>
+    </div>
+    <div class="quiz-complete" id="quiz-complete" style="display:none;">
+      <div class="stars-icon">🏆</div>
+      <div class="quiz-complete-score" id="quiz-final-score">8 / 10</div>
+      <div class="quiz-complete-msg" id="quiz-final-msg">太棒了！</div>
+      <button class="btn green" onclick="startQuiz()">再挑战一次</button>
+    </div>
+  </div>
+
+  <!-- Progress -->
+  <div id="screen-progress" class="screen">
+    <div class="summary-row">
+      <div class="stat-card"><div class="stat-val" id="books-read">0</div><div class="stat-lbl">已读绘本</div></div>
+      <div class="stat-card"><div class="stat-val">24</div><div class="stat-lbl">总绘本数</div></div>
+      <div class="stat-card"><div class="stat-val" id="stages-done">0</div><div class="stat-lbl">完成阶段</div></div>
+    </div>
+    <div class="stage-filter">
+      <button class="filter-btn active" onclick="filterBooks('all',this)">全部</button>
+      <button class="filter-btn" onclick="filterBooks(1,this)">Stage 1</button>
+      <button class="filter-btn" onclick="filterBooks(2,this)">Stage 2</button>
+      <button class="filter-btn" onclick="filterBooks(3,this)">Stage 3</button>
+      <button class="filter-btn" onclick="filterBooks(4,this)">Stage 4</button>
+    </div>
+    <div class="book-grid" id="book-grid"></div>
+  </div>
+
+  <!-- Rewards -->
+  <div id="screen-rewards" class="screen">
+    <div class="stars-display">
+      <div class="stars-icon">⭐</div>
+      <div class="stars-number" id="total-stars-big">0</div>
+      <div class="stars-label">累计获得星星</div>
+    </div>
+    <div class="section-title">成就徽章</div>
+    <div class="badges-grid" id="badges-grid"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const stageWords = {
+  1:[
+    {word:'the',meaning:'这个/那个',example:'"The cat sat on the mat."'},
+    {word:'a',meaning:'一个',example:'"A dog ran past."'},
+    {word:'I',meaning:'我',example:'"I like to read."'},
+    {word:'is',meaning:'是',example:'"This is my book."'},
+    {word:'it',meaning:'它',example:'"It is big."'},
+    {word:'in',meaning:'在...里面',example:'"The ball is in the box."'},
+    {word:'was',meaning:'是（过去式）',example:'"It was fun."'},
+    {word:'of',meaning:'的',example:'"A cup of tea."'},
+    {word:'to',meaning:'到/去',example:'"Go to school."'},
+    {word:'and',meaning:'和/并且',example:'"Mum and Dad."'}
+  ],
+  2:[
+    {word:'look',meaning:'看',example:'"Look at the dog!"'},
+    {word:'said',meaning:'说（过去式）',example:'"She said hello."'},
+    {word:'at',meaning:'在/看',example:'"Look at me!"'},
+    {word:'we',meaning:'我们',example:'"We like cats."'},
+    {word:'on',meaning:'在...上面',example:'"The cat sat on the mat."'},
+    {word:'me',meaning:'我（宾格）',example:'"Come with me."'},
+    {word:'he',meaning:'他',example:'"He is my friend."'},
+    {word:'my',meaning:'我的',example:'"This is my dog."'},
+    {word:'up',meaning:'向上',example:'"Look up at the sky."'},
+    {word:'big',meaning:'大的',example:'"What a big dog!"'}
+  ],
+  3:[
+    {word:'come',meaning:'来',example:'"Come here, Floppy!"'},
+    {word:'see',meaning:'看见',example:'"Can you see the bird?"'},
+    {word:'this',meaning:'这个',example:'"This is a red hat."'},
+    {word:'you',meaning:'你',example:'"Can you help me?"'},
+    {word:'she',meaning:'她',example:'"She likes cats."'},
+    {word:'they',meaning:'他们/她们',example:'"They went to the park."'},
+    {word:'are',meaning:'是（复数）',example:'"We are friends."'},
+    {word:'not',meaning:'不/没有',example:'"I do not like spiders."'},
+    {word:'day',meaning:'天/白天',example:'"What a lovely day!"'},
+    {word:'ran',meaning:'跑（过去式）',example:'"Floppy ran fast."'}
+  ],
+  4:[
+    {word:'play',meaning:'玩/播放',example:'"Let us play outside."'},
+    {word:'went',meaning:'去（过去式）',example:'"We went to the park."'},
+    {word:'have',meaning:'有/吃',example:'"I have a pet dog."'},
+    {word:'from',meaning:'从',example:'"A letter from Gran."'},
+    {word:'that',meaning:'那个',example:'"That is a big cake!"'},
+    {word:'then',meaning:'然后',example:'"Then it started to rain."'},
+    {word:'what',meaning:'什么',example:'"What is that?"'},
+    {word:'back',meaning:'回来/背部',example:'"Come back here!"'},
+    {word:'will',meaning:'将会',example:'"She will come soon."'},
+    {word:'called',meaning:'叫做/呼叫',example:'"He called for help."'}
+  ],
+  5:[
+    {word:'people',meaning:'人们',example:'"Many people came."'},
+    {word:'water',meaning:'水',example:'"Drink some water."'},
+    {word:'about',meaning:'关于',example:'"Tell me about your day."'},
+    {word:'make',meaning:'制作/使',example:'"Can you make a cake?"'},
+    {word:'time',meaning:'时间',example:'"What time is it?"'},
+    {word:'your',meaning:'你的',example:'"Is this your book?"'},
+    {word:'more',meaning:'更多',example:'"I want more please."'},
+    {word:'could',meaning:'能够（过去式）',example:'"She could not stop."'},
+    {word:'which',meaning:'哪个',example:'"Which one is yours?"'},
+    {word:'would',meaning:'将会',example:'"Would you like some?"'}
+  ]
+};
+
+const books=[
+  {id:1,stage:1,title:"Kipper's Toy Box",icon:'📦'},
+  {id:2,stage:1,title:'The Foggy Day',icon:'🌫️'},
+  {id:3,stage:1,title:'Floppy Did This',icon:'🐕'},
+  {id:4,stage:1,title:'A New Dog',icon:'🐶'},
+  {id:5,stage:1,title:'The Chase',icon:'🏃'},
+  {id:6,stage:1,title:'Everyone Got Wet',icon:'💧'},
+  {id:7,stage:2,title:'The Dream',icon:'💭'},
+  {id:8,stage:2,title:'What Is It?',icon:'❓'},
+  {id:9,stage:2,title:'The Trampoline',icon:'🤸'},
+  {id:10,stage:2,title:'Kipper the Clown',icon:'🤡'},
+  {id:11,stage:2,title:'The Windy Day',icon:'💨'},
+  {id:12,stage:2,title:'What a Bad Dog!',icon:'🐕'},
+  {id:13,stage:3,title:'The Snowman',icon:'⛄'},
+  {id:14,stage:3,title:'The Jumper',icon:'👕'},
+  {id:15,stage:3,title:'The Cold Day',icon:'🥶'},
+  {id:16,stage:3,title:'The Egg Hunt',icon:'🥚'},
+  {id:17,stage:3,title:"Nobody Wanted to Play",icon:'😢'},
+  {id:18,stage:3,title:'The Birthday Party',icon:'🎂'},
+  {id:19,stage:4,title:'At the Seaside',icon:'🏖️'},
+  {id:20,stage:4,title:'The Dragon',icon:'🐲'},
+  {id:21,stage:4,title:'In the Garden',icon:'🌻'},
+  {id:22,stage:4,title:'The Storm',icon:'⛈️'},
+  {id:23,stage:4,title:'Poor Floppy!',icon:'😿'},
+  {id:24,stage:4,title:'The Broken Roof',icon:'🏠'}
+];
+
+const badgeDefs=[
+  {id:'first',icon:'⭐',name:'初学者',desc:'完成第一张闪卡',cond:s=>s.totalKnown>=1},
+  {id:'ten',icon:'🌟',name:'词汇新星',desc:'掌握10个单词',cond:s=>s.totalKnown>=10},
+  {id:'twenty',icon:'💫',name:'词汇达人',desc:'掌握20个单词',cond:s=>s.totalKnown>=20},
+  {id:'reader',icon:'📖',name:'小书虫',desc:'标记完成第1本书',cond:s=>s.readBooks.length>=1},
+  {id:'bookworm',icon:'🐛',name:'书虫',desc:'完成5本书',cond:s=>s.readBooks.length>=5},
+  {id:'bookmaster',icon:'📚',name:'阅读高手',desc:'完成12本书',cond:s=>s.readBooks.length>=12},
+  {id:'quizzer',icon:'🧠',name:'小测验家',desc:'完成一次测验',cond:s=>s.quizzesCompleted>=1},
+  {id:'perfect',icon:'🏆',name:'满分达人',desc:'测验满分通过',cond:s=>s.perfectQuizzes>=1},
+  {id:'star10',icon:'💛',name:'星星收藏家',desc:'获得10颗星星',cond:s=>s.stars>=10},
+  {id:'star50',icon:'🌠',name:'星空守望者',desc:'获得50颗星星',cond:s=>s.stars>=50}
+];
+
+// Load state from localStorage
+function loadState() {
+  try {
+    const saved = localStorage.getItem('ort-state');
+    if (saved) return JSON.parse(saved);
+  } catch(e) {}
+  return { totalKnown:0, stars:0, readBooks:[], quizzesCompleted:0, perfectQuizzes:0 };
+}
+function saveState() {
+  try { localStorage.setItem('ort-state', JSON.stringify({
+    totalKnown:state.totalKnown, stars:state.stars,
+    readBooks:[...state.readBooks], quizzesCompleted:state.quizzesCompleted,
+    perfectQuizzes:state.perfectQuizzes
+  })); } catch(e) {}
+}
+
+const saved = loadState();
+const state = {
+  currentStage:1, cardIndex:0, flipped:false, knownThisRound:0,
+  totalKnown:saved.totalKnown||0, stars:saved.stars||0,
+  readBooks:new Set(saved.readBooks||[]),
+  quizzesCompleted:saved.quizzesCompleted||0,
+  perfectQuizzes:saved.perfectQuizzes||0,
+  quizScore:0, quizTotal:0, quizAnswered:false, currentBookFilter:'all'
+};
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 2200);
+}
+
+function showScreen(name, btn) {
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('screen-'+name).classList.add('active');
+  btn.classList.add('active');
+  if(name==='progress') renderBooks();
+  if(name==='rewards') renderRewards();
+  if(name==='quiz') startQuiz();
+}
+
+function selectStage(n, btn) {
+  state.currentStage=n; state.cardIndex=0; state.knownThisRound=0; state.flipped=false;
+  document.querySelectorAll('#flashcard-stages .filter-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('card-result').style.display='none';
+  document.getElementById('flashcard-wrap').style.display='block';
+  document.getElementById('card-controls').style.display='flex';
+  updateCard();
+}
+
+function updateCard() {
+  const words=stageWords[state.currentStage], idx=state.cardIndex, total=words.length;
+  document.getElementById('card-counter').textContent=(idx+1)+' / '+total;
+  document.getElementById('card-progress').style.width=((idx+1)/total*100)+'%';
+  document.getElementById('known-badge').textContent='✓ '+state.knownThisRound;
+  document.getElementById('card-word').textContent=words[idx].word;
+  document.getElementById('card-meaning').textContent=words[idx].meaning;
+  document.getElementById('card-example').textContent=words[idx].example;
+  const fc=document.getElementById('flashcard');
+  fc.classList.remove('flipped'); state.flipped=false;
+}
+
+function flipCard() {
+  const fc=document.getElementById('flashcard');
+  state.flipped=!state.flipped;
+  fc.classList.toggle('flipped',state.flipped);
+}
+
+function nextCard(known) {
+  if(known){state.knownThisRound++;state.totalKnown++;addStars(1);saveState();}
+  const words=stageWords[state.currentStage];
+  state.cardIndex++;
+  if(state.cardIndex>=words.length){
+    document.getElementById('flashcard-wrap').style.display='none';
+    document.getElementById('card-controls').style.display='none';
+    document.getElementById('result-sub').textContent='已掌握 '+state.knownThisRound+' 个单词，获得 '+state.knownThisRound+' 颗星';
+    document.getElementById('card-result').style.display='block';
+    checkBadges(); saveState();
+  } else { updateCard(); }
+}
+
+function restartCards() {
+  state.cardIndex=0; state.knownThisRound=0;
+  document.getElementById('card-result').style.display='none';
+  document.getElementById('flashcard-wrap').style.display='block';
+  document.getElementById('card-controls').style.display='flex';
+  updateCard();
+}
+
+function startQuiz() {
+  state.quizScore=0; state.quizTotal=0; state.quizAnswered=false;
+  document.getElementById('quiz-score').textContent=0;
+  document.getElementById('quiz-qnum').textContent=0;
+  document.getElementById('quiz-complete').style.display='none';
+  document.getElementById('quiz-main').style.display='block';
+  document.getElementById('quiz-feedback').textContent='';
+  document.getElementById('next-quiz-btn').style.display='none';
+  nextQuiz();
+}
+
+function nextQuiz() {
+  const allWords=Object.values(stageWords).flat();
+  const q=allWords[Math.floor(Math.random()*allWords.length)];
+  state.currentQuizWord=q; state.quizAnswered=false;
+  document.getElementById('quiz-word').textContent=q.word;
+  document.getElementById('quiz-feedback').textContent='';
+  document.getElementById('next-quiz-btn').style.display='none';
+  const wrongs=allWords.filter(w=>w.word!==q.word).sort(()=>Math.random()-0.5).slice(0,3);
+  const opts=[...wrongs,q].sort(()=>Math.random()-0.5);
+  const container=document.getElementById('quiz-options');
+  container.innerHTML='';
+  opts.forEach(o=>{
+    const btn=document.createElement('button');
+    btn.className='quiz-opt'; btn.textContent=o.meaning;
+    btn.onclick=()=>checkAnswer(o,btn);
+    container.appendChild(btn);
+  });
+}
+
+function checkAnswer(chosen,btn) {
+  if(state.quizAnswered) return;
+  state.quizAnswered=true; state.quizTotal++;
+  document.querySelectorAll('.quiz-opt').forEach(b=>{
+    b.disabled=true;
+    if(b.textContent===state.currentQuizWord.meaning) b.classList.add('correct');
+  });
+  if(chosen.meaning===state.currentQuizWord.meaning){
+    state.quizScore++; btn.classList.add('correct');
+    document.getElementById('quiz-feedback').textContent='答对了！太棒了！🎉';
+    addStars(2);
+  } else {
+    btn.classList.add('wrong');
+    document.getElementById('quiz-feedback').textContent='加油！正确答案已标出绿色。';
+  }
+  document.getElementById('quiz-score').textContent=state.quizScore;
+  document.getElementById('quiz-qnum').textContent=state.quizTotal;
+  if(state.quizTotal>=10){
+    setTimeout(finishQuiz,900);
+  } else {
+    document.getElementById('next-quiz-btn').style.display='inline-block';
+  }
+}
+
+function finishQuiz() {
+  state.quizzesCompleted++;
+  if(state.quizScore===10) state.perfectQuizzes++;
+  addStars(state.quizScore); checkBadges(); saveState();
+  document.getElementById('quiz-main').style.display='none';
+  document.getElementById('quiz-complete').style.display='block';
+  document.getElementById('quiz-final-score').textContent=state.quizScore+' / 10';
+  const msgs=['继续努力，下次会更好！','不错哦！再多练习一下！','很好，快要满分了！','完美满分！你真厉害！🏆'];
+  const mi=state.quizScore<=3?0:state.quizScore<=6?1:state.quizScore<=9?2:3;
+  document.getElementById('quiz-final-msg').textContent=msgs[mi];
+}
+
+function renderBooks(filter) {
+  const f=filter!==undefined?filter:state.currentBookFilter;
+  state.currentBookFilter=f;
+  const filtered=f==='all'?books:books.filter(b=>b.stage==f);
+  const grid=document.getElementById('book-grid');
+  grid.innerHTML='';
+  filtered.forEach(book=>{
+    const div=document.createElement('div');
+    div.className='book-item'+(state.readBooks.has(book.id)?' read':'');
+    div.innerHTML='<div class="book-icon">'+book.icon+'</div><div class="book-title">'+book.title+'</div>'+(state.readBooks.has(book.id)?'<div class="book-check">已读完 ✓</div>':'');
+    div.onclick=()=>toggleBook(book.id);
+    grid.appendChild(div);
+  });
+  document.getElementById('books-read').textContent=state.readBooks.size;
+  const sd=[1,2,3,4].filter(s=>books.filter(b=>b.stage===s).every(b=>state.readBooks.has(b.id))).length;
+  document.getElementById('stages-done').textContent=sd;
+}
+
+function filterBooks(f,btn) {
+  document.querySelectorAll('#screen-progress .stage-filter .filter-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  renderBooks(f);
+}
+
+function toggleBook(id) {
+  if(state.readBooks.has(id)){
+    state.readBooks.delete(id);
+    showToast('已取消标记');
+  } else {
+    state.readBooks.add(id);
+    addStars(3); checkBadges();
+    showToast('太棒了！获得 3 颗星星 ⭐');
+  }
+  saveState(); renderBooks();
+}
+
+function addStars(n) {
+  state.stars+=n;
+  document.getElementById('total-stars-big').textContent=state.stars;
+}
+
+function renderRewards() {
+  document.getElementById('total-stars-big').textContent=state.stars;
+  const grid=document.getElementById('badges-grid');
+  grid.innerHTML='';
+  badgeDefs.forEach(b=>{
+    const earned=b.cond(state);
+    const div=document.createElement('div');
+    div.className='badge-item'+(earned?' earned':'');
+    div.innerHTML='<div class="badge-icon">'+b.icon+'</div><div class="badge-name">'+b.name+'</div><div class="badge-desc">'+b.desc+'</div>';
+    grid.appendChild(div);
+  });
+}
+
+function checkBadges() {
+  badgeDefs.forEach(b=>{
+    const key='badge-notified-'+b.id;
+    if(b.cond(state)&&!localStorage.getItem(key)){
+      localStorage.setItem(key,'1');
+      setTimeout(()=>showToast('🏅 解锁徽章：'+b.name+'！'),500);
+    }
+  });
+}
+
+// Init
+updateCard();
+renderBooks();
+</script>
+</body>
+</html>
